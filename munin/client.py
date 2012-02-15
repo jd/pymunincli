@@ -58,6 +58,7 @@ class Client(object):
             else:
                 value = float(value)
             ret[key] = value
+        return ret
 
     def config(self, key):
         self._connection.sendall("config %s\n" % key)
