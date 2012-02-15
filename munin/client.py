@@ -41,7 +41,9 @@ class Client(object):
     def _iterline(self):
         while True:
             line = self._readline()
-            if line.startswith('#'):
+            if not line:
+                break
+            elif line.startswith('#'):
                 continue
             elif line == '.':
                 break
