@@ -29,10 +29,10 @@ setuptools.setup(
     url="http://julien.danjou.info/software/pymunincli/",
     packages=['munin'],
     classifiers=[
-        "Development Status :: 2 - Pre-Alpha"
+        "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Developers",
         "Intended Audience :: Information Technology",
-        "License :: OSI Approved :: GNU General Public License (GPL)"
+        "License :: OSI Approved :: GNU General Public License (GPL)",
         "Operating System :: OS Independent",
         "Programming Language :: Python"
     ],
