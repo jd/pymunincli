@@ -26,7 +26,7 @@ setuptools.setup(
     author_email="julien@danjou.info",
     description="munin client library",
     license="GPL",
-#    url="",
+    url="http://julien.danjou.info/software/pymunincli/",
     packages=['munin'],
     classifiers=[
         "Development Status :: 2 - Pre-Alpha"
