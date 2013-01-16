@@ -52,14 +52,20 @@ class Client(object):
     def fetch(self, key):
         self._connection.sendall("fetch %s\n" % key)
         ret = {}
+        data = ret  # For non-multigraph, we make a single-level dictionary
         for line in self._iterline():
+            if line.startswith("multigraph "):
+                subkey = line.split()[1]
+                ret[subkey] = {}  # use nested dictionaries for multigraph
+                data = ret[subkey]
+                continue
             key, rest = line.split('.', 1)
             prop, value = rest.split(' ', 1)
             if value == 'U':
                 value = None
             else:
                 value = float(value)
-            ret[key] = value
+            data[key] = value
         return ret
 
     def config(self, key):
