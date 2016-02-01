@@ -85,16 +85,20 @@ class Client(object):
     def config(self, key):
         self._connection.sendall("config %s\n" % key)
         ret = {}
+        data = ret
         for line in self._iterline():
-            if line.startswith('graph_'):
+            if line.startswith("multigraph "):
+                subkey = line.split()[1]
+                ret[subkey] = data = {}
+            elif line.startswith('graph_'):
                 key, value = line.split(' ', 1)
-                ret[key] = value
+                data[key] = value
             else:
                 key, rest = line.split('.', 1)
                 prop, value = rest.split(' ', 1)
-                if not ret.get(key):
-                    ret[key] = {}
-                ret[key][prop] = value
+                if key not in data:
+                    data[key] = {}
+                data[key][prop] = value
         return ret
 
     def nodes(self):
