@@ -34,6 +34,9 @@ class Client(object):
         self._connection = socket.create_connection((self.host, self.port))
         self.hello_string = self._readline()
 
+        self._connection.sendall("cap multigraph\n")
+        self.cap_list = self._readline().split()[1:]
+
     def list(self):
         self._connection.sendall("list\n")
         return self._readline().split(' ')

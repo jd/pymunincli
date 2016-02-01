@@ -36,5 +36,23 @@ class TestClient(unittest.TestCase):
         with self.assertRaises(ClientError):
             c.connect()
 
+    def test_list(self):
+        class MockListHandler(SocketServer.BaseRequestHandler):
+            def handle(self):
+                f = self.request.makefile()
+
+                self.request.sendall("mock\n")
+                f.readline()
+                self.request.sendall("cap multigraph\n")
+                f.readline()
+                self.request.sendall("foo bar\n")
+
+        self._mock(MockListHandler)
+
+        c = Client('localhost', port=9998)
+        c.connect()
+
+        self.assertEqual(c.list(), ['foo', 'bar'])
+
 if __name__ == "__main__":
     unittest.main()
