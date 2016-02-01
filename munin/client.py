@@ -21,14 +21,17 @@
 
 import socket
 
+class ClientError(Exception):
+    pass
+
 class Client(object):
     def __init__(self, host, port=4949):
         self.host = host
         self.port = port
+        self.buffer = ""
 
     def connect(self):
         self._connection = socket.create_connection((self.host, self.port))
-        self._s = self._connection.makefile()
         self.hello_string = self._readline()
 
     def list(self):
@@ -36,7 +39,15 @@ class Client(object):
         return self._readline().split(' ')
 
     def _readline(self):
-        return self._s.readline().strip()
+        while '\n' not in self.buffer:
+            s = self._connection.recv(4096)
+            if not s:
+                raise ClientError("server unexpectedly closed connection")
+
+            self.buffer += s
+
+        r, self.buffer = self.buffer.split('\n', 1)
+        return r.strip()
 
     def _iterline(self):
         while True:
