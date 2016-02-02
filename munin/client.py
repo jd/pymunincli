@@ -20,6 +20,20 @@
 #
 
 import socket
+from itertools import groupby, imap
+from operator import itemgetter
+
+def _itergraph(plugin, i):
+    def itergraph():
+        graph = plugin
+        for line in i:
+            if line.startswith("multigraph "):
+                graph = line.split()[1]
+            else:
+                yield graph, line
+
+    for graph, graph_line in groupby(itergraph(), key=itemgetter(0)):
+        yield graph, imap(itemgetter(1), graph_line)
 
 class ClientError(Exception):
     pass
@@ -63,42 +77,40 @@ class Client(object):
                 break
             yield line
 
+    def _itergraph(self, key):
+        return _itergraph(key, self._iterline())
+
     def fetch(self, key):
         self._connection.sendall("fetch %s\n" % key)
         ret = {}
-        data = ret  # For non-multigraph, we make a single-level dictionary
-        for line in self._iterline():
-            if line.startswith("multigraph "):
-                subkey = line.split()[1]
-                ret[subkey] = {}  # use nested dictionaries for multigraph
-                data = ret[subkey]
-                continue
-            key, rest = line.split('.', 1)
-            prop, value = rest.split(' ', 1)
-            if value == 'U':
-                value = None
-            else:
-                value = float(value)
-            data[key] = value
+        for group, lines in self._itergraph(key):
+            ret[group] = data = {}
+            for line in lines:
+                key, rest = line.split('.', 1)
+                prop, value = rest.split(' ', 1)
+                if value == 'U':
+                    value = None
+                else:
+                    value = float(value)
+                data[key] = value
         return ret
 
     def config(self, key):
         self._connection.sendall("config %s\n" % key)
         ret = {}
-        data = ret
-        for line in self._iterline():
-            if line.startswith("multigraph "):
-                subkey = line.split()[1]
-                ret[subkey] = data = {}
-            elif line.startswith('graph_'):
-                key, value = line.split(' ', 1)
-                data[key] = value
-            else:
-                key, rest = line.split('.', 1)
-                prop, value = rest.split(' ', 1)
-                if key not in data:
-                    data[key] = {}
-                data[key][prop] = value
+        for group, lines in self._itergraph(key):
+            ret[group] = data = {}
+
+            for line in lines:
+                if line.startswith('graph_'):
+                    key, value = line.split(' ', 1)
+                    data[key] = value
+                else:
+                    key, rest = line.split('.', 1)
+                    prop, value = rest.split(' ', 1)
+                    if key not in data:
+                        data[key] = {}
+                    data[key][prop] = value
         return ret
 
     def nodes(self):
