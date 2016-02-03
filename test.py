@@ -55,8 +55,7 @@ class TestClient(unittest.TestCase):
         self._mock(MockDeniedHandler)
 
         c = Client('localhost', port=9998)
-        with self.assertRaises(ClientError):
-            c.connect()
+        self.assertRaises(ClientError, c.connect)
 
     def test_list(self):
         class MockListHandler(SocketServer.BaseRequestHandler):
