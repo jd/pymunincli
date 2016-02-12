@@ -20,23 +20,51 @@
 #
 
 import socket
+from itertools import groupby, imap
+from operator import itemgetter
+
+def _itergraph(plugin, i):
+    def itergraph():
+        graph = plugin
+        for line in i:
+            if line.startswith("multigraph "):
+                graph = line.split()[1]
+            else:
+                yield graph, line
+
+    for graph, graph_line in groupby(itergraph(), key=itemgetter(0)):
+        yield graph, imap(itemgetter(1), graph_line)
+
+class ClientError(Exception):
+    pass
 
 class Client(object):
     def __init__(self, host, port=4949):
         self.host = host
         self.port = port
+        self.buffer = ""
 
     def connect(self):
         self._connection = socket.create_connection((self.host, self.port))
-        self._s = self._connection.makefile()
         self.hello_string = self._readline()
+
+        self._connection.sendall("cap multigraph\n")
+        self.cap_list = self._readline().split()[1:]
 
     def list(self):
         self._connection.sendall("list\n")
         return self._readline().split(' ')
 
     def _readline(self):
-        return self._s.readline().strip()
+        while '\n' not in self.buffer:
+            s = self._connection.recv(4096)
+            if not s:
+                raise ClientError("server unexpectedly closed connection")
+
+            self.buffer += s
+
+        r, self.buffer = self.buffer.split('\n', 1)
+        return r.strip()
 
     def _iterline(self):
         while True:
@@ -49,38 +77,40 @@ class Client(object):
                 break
             yield line
 
+    def _itergraph(self, key):
+        return _itergraph(key, self._iterline())
+
     def fetch(self, key):
         self._connection.sendall("fetch %s\n" % key)
         ret = {}
-        data = ret  # For non-multigraph, we make a single-level dictionary
-        for line in self._iterline():
-            if line.startswith("multigraph "):
-                subkey = line.split()[1]
-                ret[subkey] = {}  # use nested dictionaries for multigraph
-                data = ret[subkey]
-                continue
-            key, rest = line.split('.', 1)
-            prop, value = rest.split(' ', 1)
-            if value == 'U':
-                value = None
-            else:
-                value = float(value)
-            data[key] = value
+        for group, lines in self._itergraph(key):
+            ret[group] = data = {}
+            for line in lines:
+                key, rest = line.split('.', 1)
+                prop, value = rest.split(' ', 1)
+                if value == 'U':
+                    value = None
+                else:
+                    value = float(value)
+                data[key] = value
         return ret
 
     def config(self, key):
         self._connection.sendall("config %s\n" % key)
         ret = {}
-        for line in self._iterline():
-            if line.startswith('graph_'):
-                key, value = line.split(' ', 1)
-                ret[key] = value
-            else:
-                key, rest = line.split('.', 1)
-                prop, value = rest.split(' ', 1)
-                if not ret.get(key):
-                    ret[key] = {}
-                ret[key][prop] = value
+        for group, lines in self._itergraph(key):
+            ret[group] = data = {}
+
+            for line in lines:
+                if line.startswith('graph_'):
+                    key, value = line.split(' ', 1)
+                    data[key] = value
+                else:
+                    key, rest = line.split('.', 1)
+                    prop, value = rest.split(' ', 1)
+                    if key not in data:
+                        data[key] = {}
+                    data[key][prop] = value
         return ret
 
     def nodes(self):
